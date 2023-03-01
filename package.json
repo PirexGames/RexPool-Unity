@@ -1,0 +1,23 @@
+{
+    "name": "com.pirexgames.opool",
+    "displayName": "PirexOPool",
+    "description": "PirexOPool",
+    "version": "1.0.9",
+    "unity": "2021.3",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/PirexGames/OPool.git"
+    },
+    "author": {
+        "name": "PirexGames",
+        "email": "nguyenphuc.it14@gmail.com",
+        "url": "https://github.com/PirexGames"
+    },
+    "dependencies": {},
+    "release": {
+        "branches": [
+            "main"
+        ]
+    }
+}
