@@ -9,6 +9,7 @@ namespace PirexGames.RexPool
     {
         internal int _baseInstanceId;
         protected virtual void OnDestroy() => this.Release();
+        public void ReturnToPool() => gameObject.SetActive(false);
     }
 
 }
