@@ -17,6 +17,8 @@
 - Requirement:
   - GameObject must be `prefab`, not GameObject in scene
   - GameObject must be constain `RexPoolObject` component
+- Addressable Pool GameObject:
+  - Must be add script define `REXPOOL_ADDRESSABLE` to use API Get Addressable Pool GameObject
 
 ## APIs
 
