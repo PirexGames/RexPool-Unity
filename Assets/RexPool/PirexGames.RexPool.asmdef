@@ -1,7 +1,10 @@
 {
-    "name": "PirexGames.Pooling.OPool",
-    "rootNamespace": "",
-    "references": [],
+    "name": "PirexGames.RexPool",
+    "rootNamespace": "PirexGames.RexPool",
+    "references": [
+        "Unity.Addressables",
+        "Unity.ResourceManager"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
