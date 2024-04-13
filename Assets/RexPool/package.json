@@ -2,12 +2,12 @@
     "name": "com.pirexgames.rexpool",
     "displayName": "RexPool",
     "description": "RexPool Fast And No Care",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "unity": "2021.3",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/PirexGames/RexPool-Unity"
+        "url": "git+https://github.com/PirexGames/RexPool-Unity.git"
     },
     "author": {
         "name": "PirexGames",
