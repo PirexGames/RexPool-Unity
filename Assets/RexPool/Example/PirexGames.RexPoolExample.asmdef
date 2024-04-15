@@ -1,0 +1,14 @@
+{
+    "name": "PirexGames.RexPoolExample",
+    "rootNamespace": "PirexGames.RexPoolExample",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
