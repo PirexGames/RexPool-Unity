@@ -1,44 +1,39 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Threading.Tasks;
-
-#if REXPOOL_ADDRESSABLE
-using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement;
-#endif
 
 namespace PirexGames.RexPool
 {
-    public static class RexPool
+    public static partial class RexPool
     {
         private static Dictionary<int, List<RexPoolObject>> _pool = new();
         private static Dictionary<string, RexPoolObject> _addressableCache = new();
 
-#if REXPOOL_ADDRESSABLE
-        /// <summary>
-        /// Get pool object by addressable key
-        /// </summary>
-        /// <param name="addressableKey">Key addressable of prefab</param>
-        /// <param name="activeObject">Set active gameObject to value</param>
-        public static async Task<GameObject> GetGameObject(string addressableKey, bool activeObject = false)
+        public static void Prepair(RexPoolObject prefab, int amount)
         {
-            if (_addressableCache.TryGetValue(addressableKey, out var go))
-            {
-                return GetGameObject(go, activeObject);
-            }
-            var addressGO = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
-            var rpo = addressGO.GetComponent<RexPoolObject>();
-            if (!rpo)
-            {
-                Debug.LogError("Object must be RexPoolObject");
-                return null;
-            }
-            _addressableCache.Add(addressableKey, rpo);
-
-            return GetGameObject(rpo, activeObject);
+            for (int i = 0; i < amount; i++)
+                Take(prefab, false);
         }
-#endif
+
+        public static void CleanUp(RexPoolObject prefab)
+        {
+            var prefabId = prefab.GetInstanceID();
+            var pool = GetPool(prefabId);
+            foreach (var item in pool)
+            {
+                try
+                {
+                    GameObject.Destroy(item.gameObject);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+            pool.Clear();
+            _pool.Remove(prefabId);
+
+        }
 
         /// <summary>
         /// This method return true false result get object from pool, result type gameObject will return from result value
@@ -46,16 +41,13 @@ namespace PirexGames.RexPool
         /// <param name="prefab">Prefab to pooling</param>
         /// <param name="result">Value type of Object</param>
         /// <param name="activeObject">Set active gameObject to value</param>
-        public static bool GetGameObject<T>(RexPoolObject prefab, out T result, bool activeObject = false) where T : RexPoolObject
+        public static T Take<T>(RexPoolObject prefab, bool activeObject = false) where T : RexPoolObject
         {
-            result = null;
-            var go = GetRexPoolObject(prefab, activeObject);
+            var go = TakeRPO(prefab, activeObject);
             if (go is T)
-            {
-                result = go as T;
-                return true;
-            }
-            return false;
+                return go as T;
+            Debug.Log("Cannot Parse Type T");
+            return null;
         }
 
         /// <summary>
@@ -63,14 +55,14 @@ namespace PirexGames.RexPool
         /// </summary>
         /// <param name="prefab">Prefab to pooling</param>
         /// <param name="activeObject">Set active gameObject to value</param>
-        public static GameObject GetGameObject(RexPoolObject prefab, bool activeObject = false) => GetRexPoolObject(prefab, activeObject).gameObject;
+        public static GameObject Take(RexPoolObject prefab, bool activeObject = false) => TakeRPO(prefab, activeObject).gameObject;
 
         /// <summary>
         /// Get RexPoolObject from Pool
         /// </summary>
         /// <param name="prefab">Prefab to pooling</param>
         /// <param name="activeObject">Set active gameObject to value</param>
-        public static RexPoolObject GetRexPoolObject(RexPoolObject prefab, bool activeObject = false)
+        public static RexPoolObject TakeRPO(RexPoolObject prefab, bool activeObject = false)
         {
             var prefabId = prefab.GetInstanceID();
             var pool = GetPool(prefabId);
