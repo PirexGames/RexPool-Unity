@@ -9,7 +9,7 @@
 - Copy and paste to manifest.json
 
 ```json
-"com.RexPool": "https://github.com/PirexGames/RexPool-Unity.git#1.0.3",
+"com.pirexgames.rexpool": "https://github.com/PirexGames/RexPool-Unity.git#1.0.3",
 ```
 
 ## Requirement
