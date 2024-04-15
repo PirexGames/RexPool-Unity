@@ -9,11 +9,7 @@ namespace PirexGames.RexPool
         private static Dictionary<int, List<RexPoolObject>> _pool = new();
         private static Dictionary<string, RexPoolObject> _addressableCache = new();
 
-        public static void Prepair(RexPoolObject prefab, int amount)
-        {
-            for (int i = 0; i < amount; i++)
-                Take(prefab, false);
-        }
+        public static void Prepair(RexPoolObject prefab, int amount) => PrepairRPO(prefab, amount);
 
         public static void CleanUp(RexPoolObject prefab)
         {
@@ -41,7 +37,7 @@ namespace PirexGames.RexPool
         /// <param name="prefab">Prefab to pooling</param>
         /// <param name="result">Value type of Object</param>
         /// <param name="activeObject">Set active gameObject to value</param>
-        public static T Take<T>(RexPoolObject prefab, bool activeObject = false) where T : RexPoolObject
+        public static T Take<T>(RexPoolObject prefab, bool activeObject = true) where T : RexPoolObject
         {
             var go = TakeRPO(prefab, activeObject);
             if (go is T)
@@ -55,29 +51,45 @@ namespace PirexGames.RexPool
         /// </summary>
         /// <param name="prefab">Prefab to pooling</param>
         /// <param name="activeObject">Set active gameObject to value</param>
-        public static GameObject Take(RexPoolObject prefab, bool activeObject = false) => TakeRPO(prefab, activeObject).gameObject;
+        public static GameObject Take(RexPoolObject prefab, bool activeObject = true) => TakeRPO(prefab, activeObject).gameObject;
 
         /// <summary>
         /// Get RexPoolObject from Pool
         /// </summary>
         /// <param name="prefab">Prefab to pooling</param>
         /// <param name="activeObject">Set active gameObject to value</param>
-        public static RexPoolObject TakeRPO(RexPoolObject prefab, bool activeObject = false)
+        public static RexPoolObject TakeRPO(RexPoolObject prefab, bool activeObject = true)
         {
             var prefabId = prefab.GetInstanceID();
             var pool = GetPool(prefabId);
-            Debug.Log(pool.Count);
             for (int i = pool.Count - 1; i >= 0; i--)
             {
-                if (pool[i].gameObject.activeSelf) continue;
+                if (!pool[i].isOnPool) continue;
                 if (activeObject)
                     pool[i].gameObject.SetActive(true);
+                pool[i].isOnPool = false;
                 return pool[i];
             }
             var go = GameObject.Instantiate(prefab);
-            go._baseInstanceId = prefabId;
+            go.baseInstanceId = prefabId;
+            go.gameObject.SetActive(activeObject);
+            go.isOnPool = false;
             pool.Add(go);
             return go;
+        }
+
+        private static void PrepairRPO(RexPoolObject prefab, int amount)
+        {
+            var prefabId = prefab.GetInstanceID();
+            var pool = GetPool(prefabId);
+            for (int i = amount - 1; i >= 0; i--)
+            {
+                var go = GameObject.Instantiate(prefab);
+                go.baseInstanceId = prefabId;
+                go.gameObject.SetActive(false);
+                go.isOnPool = true;
+                pool.Add(go);
+            }
         }
 
         /// <summary>
@@ -85,7 +97,7 @@ namespace PirexGames.RexPool
         /// </summary>
         public static void Release(this RexPoolObject go)
         {
-            var pool = GetPool(go._baseInstanceId);
+            var pool = GetPool(go.baseInstanceId);
             for (int i = pool.Count - 1; i >= 0; i--)
                 if (pool[i].GetInstanceID().Equals(go.GetInstanceID())) pool.RemoveAt(i);
         }
