@@ -14,8 +14,19 @@ namespace PirexGames.RexPool
 
         public static async Task Prepair(string addressableKey, int amount)
         {
-            for (int i = 0; i < amount; i++)
-                await Take(addressableKey, false);
+            RexPoolObject goAddressable;
+            if (_addressableCache.TryGetValue(addressableKey, out var go))
+                goAddressable = go;
+            else
+            {
+                var addressGO = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
+                goAddressable = addressGO.GetComponent<RexPoolObject>();
+            }
+            if (goAddressable)
+            {
+                _addressableCache.Add(addressableKey, goAddressable);
+                PrepairRPO(goAddressable, amount);
+            }
         }
 
         public static void CleanUp(string addressableKey)
@@ -31,7 +42,7 @@ namespace PirexGames.RexPool
         /// </summary>
         /// <param name="addressableKey">Key addressable of prefab</param>
         /// <param name="activeObject">Set active gameObject to value</param>
-        public static async Task<GameObject> Take(string addressableKey, bool activeObject = false)
+        public static async Task<GameObject> Take(string addressableKey, bool activeObject = true)
         {
             if (_addressableCache.TryGetValue(addressableKey, out var go))
             {
@@ -51,7 +62,7 @@ namespace PirexGames.RexPool
             return Take(rpo, activeObject);
         }
 
-        public static async Task<T> Take<T>(string addressableKey, bool activeObject = false) where T : RexPoolObject
+        public static async Task<T> Take<T>(string addressableKey, bool activeObject = true) where T : RexPoolObject
         {
             var go = await Take(addressableKey, activeObject);
             if (go is T)
@@ -59,6 +70,7 @@ namespace PirexGames.RexPool
             Debug.Log("Cannot Parse Type T");
             return null;
         }
+
 #endif
 
     }
