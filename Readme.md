@@ -9,7 +9,7 @@
 - Copy and paste to manifest.json
 
 ```json
-"com.pirexgames.rexpool": "https://github.com/PirexGames/RexPool-Unity.git#1.0.3",
+"com.pirexgames.rexpool": "https://github.com/PirexGames/RexPool-Unity.git#1.0.4",
 ```
 
 ## Requirement
@@ -22,7 +22,7 @@
 
 ## APIs
 
-### Use static class `RexPool.cs` to get gameObject from pool
+### Use static class `RexPoolManager.cs` to get gameObject from pool
 
 - Note Param
 

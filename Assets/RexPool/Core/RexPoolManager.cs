@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace PirexGames.RexPool
 {
-    public static partial class RexPool
+    public static partial class RexPoolManager
     {
         private static Dictionary<int, List<RexPoolObject>> _pool = new();
         private static Dictionary<string, RexPoolObject> _addressableCache = new();

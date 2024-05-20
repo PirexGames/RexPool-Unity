@@ -29,7 +29,7 @@ namespace RexPoolExample
         {
             for (int i = 0; i < 10; i++)
             {
-                var wp = RexPool.Take<Weapon>(rexPoolObject);
+                var wp = RexPoolManager.Take<Weapon>(rexPoolObject);
                 wp.transform.position = Random.insideUnitCircle * 5;
                 wp.Attack();
             }
@@ -37,7 +37,7 @@ namespace RexPoolExample
 
         private void Prepair()
         {
-            RexPool.Prepair(rexPoolObject, amountPrepair);
+            RexPoolManager.Prepair(rexPoolObject, amountPrepair);
         }
 
         private void LoadScene()
