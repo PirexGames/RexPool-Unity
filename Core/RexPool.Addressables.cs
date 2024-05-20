@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace PirexGames.RexPool
 {
-    public static partial class RexPool
+    public static partial class RexPoolManager
     {
 
 #if REXPOOL_ADDRESSABLE
