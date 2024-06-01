@@ -7,10 +7,10 @@ namespace PirexGames.RexPool
     [DisallowMultipleComponent]
     public class RexPoolObject : MonoBehaviour
     {
-        internal int baseInstanceId;
+        internal int prefabId;
         internal bool isOnPool;
         protected virtual void OnDisable() => isOnPool = true;
-        protected virtual void OnDestroy() => this.Release();
+        protected virtual void OnDestroy() => this.gameObject.Release(prefabId);
         public void ReturnToPool()
         {
             isOnPool = true;
