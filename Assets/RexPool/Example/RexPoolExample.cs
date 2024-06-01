@@ -9,7 +9,7 @@ namespace RexPoolExample
 {
     public class RexPoolExample : MonoBehaviour
     {
-        public RexPoolObject rexPoolObject;
+        public GameObject rexPoolObject;
 
         public Button btnSpawnWP;
         public Button btnPrepair;

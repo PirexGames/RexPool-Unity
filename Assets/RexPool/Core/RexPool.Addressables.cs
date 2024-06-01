@@ -14,13 +14,13 @@ namespace PirexGames.RexPool
 
         public static async Task Prepair(string addressableKey, int amount)
         {
-            RexPoolObject goAddressable;
+            GameObject goAddressable;
             if (_addressableCache.TryGetValue(addressableKey, out var go))
                 goAddressable = go;
             else
             {
                 var addressGO = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
-                goAddressable = addressGO.GetComponent<RexPoolObject>();
+                goAddressable = addressGO.GetComponent<GameObject>();
             }
             if (goAddressable)
             {
@@ -51,7 +51,7 @@ namespace PirexGames.RexPool
             }
             // load new gameobject addressable
             var addressGO = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
-            var rpo = addressGO.GetComponent<RexPoolObject>();
+            var rpo = addressGO.GetComponent<GameObject>();
             if (!rpo)
             {
                 Debug.LogError("Object must be RexPoolObject");
@@ -62,13 +62,14 @@ namespace PirexGames.RexPool
             return Take(rpo, activeObject);
         }
 
-        public static async Task<T> Take<T>(string addressableKey, bool activeObject = true) where T : RexPoolObject
+        public static async Task<T> Take<T>(string addressableKey, bool activeObject = true) where T : MonoBehaviour
         {
             var go = await Take(addressableKey, activeObject);
-            if (go is T)
-                return go as T;
+            var result = go.GetComponent<T>();
+            if (result)
+                return result;
             Debug.Log("Cannot Parse Type T");
-            return null;
+            return default(T);
         }
 
 #endif

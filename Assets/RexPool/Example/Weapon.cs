@@ -5,7 +5,7 @@ using PirexGames.RexPool;
 
 namespace RexPoolExample
 {
-    public class Weapon : RexPoolObject
+    public class Weapon : MonoBehaviour
     {
 
         private void OnEnable()
@@ -15,7 +15,7 @@ namespace RexPoolExample
 
         private void ReturnPool()
         {
-            ReturnToPool();
+            this.gameObject.SetActive(false);
         }
 
         public void Attack()

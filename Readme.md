@@ -16,7 +16,7 @@
 
 - Requirement:
   - GameObject must be `prefab`, not GameObject in scene
-  - GameObject must be constain `RexPoolObject` component
+  - GameObject must be constain `GameObject` component
 - Addressable Pool GameObject:
   - Must be add script define `REXPOOL_ADDRESSABLE` to use API Get Addressable Pool GameObject
 
@@ -36,7 +36,7 @@
 
 ```c#
 // with prefab
-public static void Prepair(RexPoolObject prefab, int amount);
+public static void Prepair(GameObject prefab, int amount);
 
 // with addressable key
 public static async Task Prepair(string addressableKey, int amount);
@@ -46,7 +46,7 @@ public static async Task Prepair(string addressableKey, int amount);
 
 ```c#
 // with prefab
-public static void CleanUp(RexPoolObject prefab);
+public static void CleanUp(GameObject prefab);
 
 // with addressable key
 public static void CleanUp(string addressableKey);
@@ -56,36 +56,34 @@ public static void CleanUp(string addressableKey);
 
 ```c#
 // with prefab
-public static GameObject Take(RexPoolObject prefab, bool activeObject = false);
+public static GameObject Take(GameObject prefab, bool activeObject = false);
 
 // with addressable key
 public static async Task<GameObject> Take(string addressableKey, bool activeObject = false)
 ```
 
-- Get RexPoolObject From Pool:
+- Get GameObject From Pool:
 
 ```c#
-public static RexPoolObject TakeRPO(RexPoolObject prefab, bool activeObject = false);
+public static GameObject TakeRPO(GameObject prefab, bool activeObject = false);
 ```
 
 - Get Type T Object From Pool:
 
 ```c#
 // with prefab
-public static T Take<T>(RexPoolObject prefab, bool activeObject = false)
-where T : RexPoolObject;
+public static T Take<T>(GameObject prefab, bool activeObject = false)
+where T : MonoBehaviour;
 
 //with addressable
 public static async Task<T> Take<T>(string addressableKey, bool activeObject = false)
-where T : RexPoolObject;
-```
-
-- Frees the object reference from the pool
-
-```c#
-public static void Release(this RexPoolObject go);
+where T : MonoBehaviour;
 ```
 
 ### How to return object to pool
 
-- You can return object to pool with 2 ways: `SetActive(false)` gameObject or call method `ReturnToPool()` from RexPoolObject
+- You can return object to pool with 2 ways: `SetActive(false)` gameObject or call method `ReturnToPool()` from GameObject
+
+### How to release object
+
+- When gameObject is destroy, it will auto release in pool
