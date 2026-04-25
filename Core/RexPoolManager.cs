@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,116 +5,188 @@ namespace PirexGames.RexPool
 {
     public static partial class RexPoolManager
     {
-        private static Dictionary<int, List<GameObject>> _pool = new();
-        private static Dictionary<string, GameObject> _addressableCache = new();
+        // Available objects ready to reuse — O(1) push/pop
+        private static readonly Dictionary<int, Stack<GameObject>> _freePool = new();
 
+        // All instance IDs per prefab (free + in-use), used by CleanUp
+        private static readonly Dictionary<int, List<int>> _allInstances = new();
+
+        // Fast lookup: goInstanceID → RexPoolObject — eliminates GetComponent in hot path
+        private static readonly Dictionary<int, RexPoolObject> _rpoCache = new();
+
+        private static readonly Dictionary<string, GameObject> _addressableCache = new();
+
+        // ─── Public API ──────────────────────────────────────────────────────────────
+
+        /// <summary>Pre-warm the pool with a number of inactive instances.</summary>
         public static void Prepair(GameObject prefab, int amount) => PrepairRPO(prefab, amount);
 
+        /// <summary>Destroy all pooled instances of this prefab and clear tracking data.</summary>
         public static void CleanUp(GameObject prefab)
         {
             var prefabId = prefab.GetInstanceID();
-            var pool = GetPool(prefabId);
-            foreach (var item in pool)
-            {
-                try
-                {
-                    GameObject.Destroy(item.gameObject);
-                }
-                catch
-                {
-                    // ignore
-                }
-            }
-            pool.Clear();
-            _pool.Remove(prefabId);
 
+            if (_allInstances.TryGetValue(prefabId, out var ids))
+            {
+                foreach (var goId in ids)
+                {
+                    if (_rpoCache.TryGetValue(goId, out var rpo) && rpo != null)
+                        Object.Destroy(rpo.gameObject);
+                    _rpoCache.Remove(goId);
+                }
+                ids.Clear();
+                _allInstances.Remove(prefabId);
+            }
+
+            if (_freePool.TryGetValue(prefabId, out var stack))
+            {
+                stack.Clear();
+                _freePool.Remove(prefabId);
+            }
         }
 
         /// <summary>
-        /// This method return true false result get object from pool, result type gameObject will return from result value
+        /// Take a typed component from the pool.
+        /// Uses cached component lookup — zero GetComponent overhead after first call.
         /// </summary>
-        /// <param name="prefab">Prefab to pooling</param>
-        /// <param name="result">Value type of Object</param>
-        /// <param name="activeObject">Set active gameObject to value</param>
         public static T Take<T>(GameObject prefab, bool activeObject = true) where T : MonoBehaviour
         {
             var go = TakeRPO(prefab, activeObject);
+            if (_rpoCache.TryGetValue(go.GetInstanceID(), out var rpo))
+            {
+                var cached = rpo.GetCachedComponent<T>();
+                if (cached) return cached;
+            }
             var result = go.GetComponent<T>();
-            if (result)
-                return result;
-            Debug.Log("Cannot Parse Type T");
-            return default(T);
+            if (result) return result;
+            Debug.LogWarning($"[RexPool] Component {typeof(T).Name} not found on '{go.name}'");
+            return default;
         }
 
-        /// <summary>
-        /// Get GameObject from Pool
-        /// </summary>
-        /// <param name="prefab">Prefab to pooling</param>
-        /// <param name="activeObject">Set active gameObject to value</param>
-        public static GameObject Take(GameObject prefab, bool activeObject = true) => TakeRPO(prefab, activeObject).gameObject;
+        /// <summary>Take a GameObject from the pool.</summary>
+        public static GameObject Take(GameObject prefab, bool activeObject = true)
+            => TakeRPO(prefab, activeObject);
 
         /// <summary>
-        /// Get GameObject from Pool
+        /// Core take — O(1) amortized. Null-checks destroyed entries lazily.
         /// </summary>
-        /// <param name="prefab">Prefab to pooling</param>
-        /// <param name="activeObject">Set active gameObject to value</param>
         public static GameObject TakeRPO(GameObject prefab, bool activeObject = true)
         {
             var prefabId = prefab.GetInstanceID();
-            var pool = GetPool(prefabId);
-            for (int i = pool.Count - 1; i >= 0; i--)
+
+            if (_freePool.TryGetValue(prefabId, out var stack))
             {
-                var rexPoolObj = pool[i].GetComponent<RexPoolObject>();
-                if (!rexPoolObj.isOnPool) continue;
-                if (activeObject)
-                    pool[i].gameObject.SetActive(true);
-                rexPoolObj.isOnPool = false;
-                return pool[i];
+                while (stack.Count > 0)
+                {
+                    var pooled = stack.Pop();
+                    if (pooled == null) continue; // Destroyed externally — skip stale ref
+
+                    if (_rpoCache.TryGetValue(pooled.GetInstanceID(), out var rpo))
+                        rpo.isOnPool = false;
+
+                    if (activeObject)
+                        pooled.SetActive(true);
+
+                    return pooled;
+                }
             }
-            var go = GameObject.Instantiate(prefab);
+
+            return CreateInstance(prefab, prefabId, activeObject);
+        }
+
+        /// <summary>
+        /// Permanently removes a specific instance from pool tracking.
+        /// Called automatically from RexPoolObject.OnDestroy.
+        /// </summary>
+        public static void Release(this GameObject go, int prefabId)
+        {
+            var goId = go.GetInstanceID();
+            _rpoCache.Remove(goId);
+            if (_allInstances.TryGetValue(prefabId, out var ids))
+                ids.Remove(goId);
+        }
+
+        // ─── Internal ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Called from RexPoolObject.OnDisable. Pushes the object back to free stack.
+        /// </summary>
+        internal static void PushToFreePool(int prefabId, GameObject go)
+        {
+            if (!_freePool.TryGetValue(prefabId, out var stack))
+            {
+                stack = new Stack<GameObject>();
+                _freePool[prefabId] = stack;
+            }
+            stack.Push(go);
+        }
+
+        /// <summary>
+        /// Called from RexPoolObject.OnDestroy. Cleans up cache entries.
+        /// </summary>
+        internal static void OnInstanceDestroyed(int goInstanceId, int prefabId)
+        {
+            _rpoCache.Remove(goInstanceId);
+            if (_allInstances.TryGetValue(prefabId, out var ids))
+                ids.Remove(goInstanceId); // O(n) — acceptable; OnDestroy is rare
+        }
+
+        // ─── Private ─────────────────────────────────────────────────────────────────
+
+        private static GameObject CreateInstance(GameObject prefab, int prefabId, bool activeObject)
+        {
+            var go = Object.Instantiate(prefab);
             go.SetActive(activeObject);
-            var poolObj = go.GetComponent<RexPoolObject>();
-            if (!poolObj)
-                poolObj = go.AddComponent<RexPoolObject>();
+
+            var poolObj = go.GetComponent<RexPoolObject>() ?? go.AddComponent<RexPoolObject>();
             poolObj.isOnPool = false;
             poolObj.prefabId = prefabId;
-            pool.Add(go);
+
+            var goId = go.GetInstanceID();
+            _rpoCache[goId] = poolObj;
+
+            if (!_allInstances.TryGetValue(prefabId, out var ids))
+            {
+                ids = new List<int>();
+                _allInstances[prefabId] = ids;
+            }
+            ids.Add(goId);
+
             return go;
         }
 
         private static void PrepairRPO(GameObject prefab, int amount)
         {
             var prefabId = prefab.GetInstanceID();
-            var pool = GetPool(prefabId);
-            for (int i = amount - 1; i >= 0; i--)
+
+            if (!_freePool.TryGetValue(prefabId, out var stack))
             {
-                var go = GameObject.Instantiate(prefab);
-                go.SetActive(false);
-                var poolObj = go.GetComponent<RexPoolObject>();
-                if (!poolObj)
-                    poolObj = go.AddComponent<RexPoolObject>();
-                poolObj.prefabId = prefabId;
-                poolObj.isOnPool = true;
-                pool.Add(go);
+                stack = new Stack<GameObject>(amount);
+                _freePool[prefabId] = stack;
             }
-        }
 
-        /// <summary>
-        /// Frees the object reference from the pool
-        /// </summary>
-        public static void Release(this GameObject go, int prefabId)
-        {
-            var pool = GetPool(prefabId);
-            for (int i = pool.Count - 1; i >= 0; i--)
-                if (pool[i].GetInstanceID().Equals(go.GetInstanceID())) pool.RemoveAt(i);
-        }
+            if (!_allInstances.TryGetValue(prefabId, out var ids))
+            {
+                ids = new List<int>(amount);
+                _allInstances[prefabId] = ids;
+            }
 
-        private static List<GameObject> GetPool(int type)
-        {
-            if (_pool.TryGetValue(type, out var pool)) return pool;
-            var newPool = new List<GameObject>();
-            _pool.TryAdd(type, newPool);
-            return newPool;
+            for (int i = 0; i < amount; i++)
+            {
+                var go = Object.Instantiate(prefab);
+                var poolObj = go.GetComponent<RexPoolObject>() ?? go.AddComponent<RexPoolObject>();
+                poolObj.prefabId = prefabId;
+
+                // Set isOnPool = true BEFORE SetActive(false) to prevent OnDisable double-push
+                poolObj.isOnPool = true;
+
+                var goId = go.GetInstanceID();
+                _rpoCache[goId] = poolObj;
+                ids.Add(goId);
+
+                go.SetActive(false); // Triggers OnDisable — guard (isOnPool=true) prevents re-push
+                stack.Push(go);
+            }
         }
     }
 }
