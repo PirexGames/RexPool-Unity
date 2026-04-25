@@ -1,6 +1,5 @@
 #if REXPOOL_ADDRESSABLE
 using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement;
 #endif
 using System.Threading.Tasks;
 using UnityEngine;
@@ -12,64 +11,56 @@ namespace PirexGames.RexPool
 
 #if REXPOOL_ADDRESSABLE
 
+        /// <summary>Pre-warm pool with objects loaded from Addressables.</summary>
         public static async Task Prepair(string addressableKey, int amount)
         {
-            GameObject goAddressable;
-            if (_addressableCache.TryGetValue(addressableKey, out var go))
-                goAddressable = go;
-            else
+            if (!_addressableCache.TryGetValue(addressableKey, out var prefab))
             {
-                var addressGO = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
-                goAddressable = addressGO.GetComponent<GameObject>();
+                prefab = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
+                if (prefab == null)
+                {
+                    Debug.LogError($"[RexPool] Addressable '{addressableKey}' not found.");
+                    return;
+                }
+                _addressableCache[addressableKey] = prefab;
             }
-            if (goAddressable)
-            {
-                _addressableCache.Add(addressableKey, goAddressable);
-                PrepairRPO(goAddressable, amount);
-            }
+            PrepairRPO(prefab, amount);
         }
 
+        /// <summary>Destroy all pooled instances loaded from the given addressable key.</summary>
         public static void CleanUp(string addressableKey)
         {
-            if (!_addressableCache.TryGetValue(addressableKey, out var go)) return;
+            if (!_addressableCache.TryGetValue(addressableKey, out var prefab)) return;
             _addressableCache.Remove(addressableKey);
-            CleanUp(go);
-            GameObject.Destroy(go);
+            CleanUp(prefab);
         }
 
-        /// <summary>
-        /// Get pool object by addressable key
-        /// </summary>
-        /// <param name="addressableKey">Key addressable of prefab</param>
-        /// <param name="activeObject">Set active gameObject to value</param>
+        /// <summary>Take a GameObject from the pool by addressable key.</summary>
         public static async Task<GameObject> Take(string addressableKey, bool activeObject = true)
         {
-            if (_addressableCache.TryGetValue(addressableKey, out var go))
+            if (!_addressableCache.TryGetValue(addressableKey, out var prefab))
             {
-                // if have in addressable cache, get it
-                return Take(go, activeObject);
+                prefab = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
+                if (prefab == null)
+                {
+                    Debug.LogError($"[RexPool] Addressable '{addressableKey}' not found.");
+                    return null;
+                }
+                _addressableCache[addressableKey] = prefab;
             }
-            // load new gameobject addressable
-            var addressGO = await Addressables.LoadAssetAsync<GameObject>(addressableKey).Task;
-            var rpo = addressGO.GetComponent<GameObject>();
-            if (!rpo)
-            {
-                Debug.LogError("Object must be RexPoolObject");
-                return null;
-            }
-            _addressableCache.Add(addressableKey, rpo);
-
-            return Take(rpo, activeObject);
+            return Take(prefab, activeObject);
         }
 
-        public static async Task<T> Take<T>(string addressableKey, bool activeObject = true) where T : MonoBehaviour
+        /// <summary>Take a typed component from the pool by addressable key.</summary>
+        public static async Task<T> Take<T>(string addressableKey, bool activeObject = true)
+            where T : MonoBehaviour
         {
             var go = await Take(addressableKey, activeObject);
+            if (go == null) return default;
             var result = go.GetComponent<T>();
-            if (result)
-                return result;
-            Debug.Log("Cannot Parse Type T");
-            return default(T);
+            if (result) return result;
+            Debug.LogWarning($"[RexPool] Component {typeof(T).Name} not found on '{go.name}'");
+            return default;
         }
 
 #endif
